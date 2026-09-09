@@ -1,0 +1,55 @@
+{
+  "timestamp": "2026-09-09T16:20:00Z",
+  "airport_code": "RKSI",
+  "grid_size": {
+    "rows": 3,
+    "cols": 3
+  },
+  "wind_grid": [
+    {
+      "grid_index": 0,
+      "coordinates": { "lat": 37.4601, "lon": 126.4401, "alt": 100 },
+      "vector": { "u": 10.0, "v": 2.0, "w": 0.1 }
+    },
+    {
+      "grid_index": 1,
+      "coordinates": { "lat": 37.4601, "lon": 126.4411, "alt": 100 },
+      "vector": { "u": 12.0, "v": 1.5, "w": -0.2 }
+    },
+    {
+      "grid_index": 2,
+      "coordinates": { "lat": 37.4601, "lon": 126.4421, "alt": 100 },
+      "vector": { "u": 25.0, "v": -8.0, "w": -5.0 }
+    },
+    {
+      "grid_index": 3,
+      "coordinates": { "lat": 37.4611, "lon": 126.4401, "alt": 100 },
+      "vector": { "u": 9.5, "v": 2.1, "w": 0.0 }
+    },
+    {
+      "grid_index": 4,
+      "coordinates": { "lat": 37.4611, "lon": 126.4411, "alt": 100 },
+      "vector": { "u": 11.8, "v": 1.2, "w": -0.5 }
+    },
+    {
+      "grid_index": 5,
+      "coordinates": { "lat": 37.4611, "lon": 126.4421, "alt": 100 },
+      "vector": { "u": 26.2, "v": -9.1, "w": -6.2 }
+    },
+    {
+      "grid_index": 6,
+      "coordinates": { "lat": 37.4621, "lon": 126.4401, "alt": 100 },
+      "vector": { "u": 10.2, "v": 1.9, "w": 0.2 }
+    },
+    {
+      "grid_index": 7,
+      "coordinates": { "lat": 37.4621, "lon": 126.4411, "alt": 100 },
+      "vector": { "u": 12.1, "v": 1.8, "w": -0.1 }
+    },
+    {
+      "grid_index": 8,
+      "coordinates": { "lat": 37.4621, "lon": 126.4421, "alt": 100 },
+      "vector": { "u": 24.8, "v": -8.5, "w": -5.8 }
+    }
+  ]
+}
