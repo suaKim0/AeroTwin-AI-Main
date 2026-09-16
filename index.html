@@ -2,36 +2,200 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>AeroFlow AI - 3D Fluid Overlay</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroFlow AI - 통합 시각화 및 제어 시스템</title>
+
+  <!-- CesiumJS CDN -->
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.110/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.110/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
   <style>
     body, html { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     
+    /* 1. Cesium 3D 지도 레이어 */
     #cesiumContainer {
       width: 100%; height: 100%;
-      position: absolute; top: 0; left: 0; z-index: 1;
+      position: absolute; top: 0; left: 0;
+      z-index: 1;
     }
 
+    /* 2. WebGL 유체 시뮬레이션 레이어 */
     #fluidCanvas {
       width: 100%; height: 100%;
-      position: absolute; top: 0; left: 0; z-index: 2;
+      position: absolute; top: 0; left: 0;
+      z-index: 2;
       pointer-events: none;
       background: transparent;
+    }
+
+    /* 3. React UI 패널 레이어 (우상단 고정, 이벤트 허용) */
+    #root {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 10;
+      pointer-events: auto;
     }
   </style>
 </head>
 <body>
+
+  <!-- 3D 지도 영역 -->
   <div id="cesiumContainer"></div>
+  
+  <!-- 유체 시뮬레이션 캔버스 -->
   <canvas id="fluidCanvas"></canvas>
 
+  <!-- 기상 제어 UI 패널 영역 -->
+  <div id="root" class="w-full max-w-sm"></div>
+
+  <!-- 유체 제어 스크립트 -->
   <script src="fluid.js"></script>
+
+  <!-- Cesium 3D 지도 생성 -->
   <script>
     const viewer = new Cesium.Viewer('cesiumContainer', {
       baseLayerPicker: false,
       timeline: false,
       animation: false
     });
+  </script>
+
+  <!-- React 기상 제어 패널 스크립트 -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function WeatherControlPanel() {
+      const [windDirection, setWindDirection] = useState(180);
+      const [windSpeed, setWindSpeed] = useState(10);
+
+      const getDirectionText = (deg) => {
+        if (deg >= 337.5 || deg < 22.5) return "북풍 (N)";
+        if (deg >= 22.5 && deg < 67.5) return "북동풍 (NE)";
+        if (deg >= 67.5 && deg < 112.5) return "동풍 (E)";
+        if (deg >= 112.5 && deg < 157.5) return "남동풍 (SE)";
+        if (deg >= 157.5 && deg < 202.5) return "남풍 (S)";
+        if (deg >= 202.5 && deg < 247.5) return "남서풍 (SW)";
+        if (deg >= 247.5 && deg < 292.5) return "서풍 (W)";
+        return "북서풍 (NW)";
+      };
+
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      }, [windDirection, windSpeed]);
+
+      const handleReset = () => {
+        setWindDirection(180);
+        setWindSpeed(10);
+      };
+
+      const handleApply = () => {
+        // UI에서 조절한 풍속 데이터를 유체 제어 함수로 전달하는 연동 로직
+        if (typeof updateFluidColor === 'function') {
+          // 풍속 0~100 m/s 수치를 AI 위험도 수치(0~100)로 가상 매핑하여 실시간 테스트
+          updateFluidColor(windSpeed);
+        }
+
+        alert(
+          `기상 환경이 적용되었습니다.\n\n` +
+          `풍향: ${windDirection}° (${getDirectionText(windDirection)})\n` +
+          `풍속: ${windSpeed} m/s`
+        );
+      };
+
+      return (
+        <div className="bg-slate-800/90 backdrop-blur-md border border-slate-700 rounded-2xl shadow-2xl p-5 text-slate-100">
+          <div className="flex items-center gap-2 border-b border-slate-700 pb-3 mb-4">
+            <i data-lucide="wind" className="w-5 h-5 text-sky-400"></i>
+            <h2 className="text-lg font-bold tracking-wide">기상 제어 패널</h2>
+          </div>
+
+          <div className="space-y-6">
+            {/* 풍향 섹션 */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <label className="font-medium text-slate-400 flex items-center gap-1">
+                  <i data-lucide="navigation" className="w-3.5 h-3.5"></i>
+                  풍향
+                </label>
+                <span className="font-semibold bg-slate-700 px-2 py-0.5 rounded text-sky-400">
+                  {windDirection}° ({getDirectionText(windDirection)})
+                </span>
+              </div>
+
+              <div className="flex justify-center py-1">
+                <div className="relative w-14 h-14 rounded-full border border-dashed border-sky-500/50 flex justify-center items-center">
+                  <div
+                    className="absolute inset-0 flex justify-center items-center transition-transform duration-100"
+                    style={{ transform: `rotate(${windDirection}deg)` }}
+                  >
+                    <i data-lucide="navigation" className="w-6 h-6 text-sky-400 fill-sky-400"></i>
+                  </div>
+                  <div className="absolute w-1.5 h-1.5 rounded-full bg-sky-400"></div>
+                </div>
+              </div>
+
+              <input
+                type="range" min="0" max="360" step="1"
+                value={windDirection}
+                onChange={(e) => setWindDirection(Number(e.target.value))}
+                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+              />
+            </div>
+
+            {/* 풍속 섹션 */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <label className="font-medium text-slate-400 flex items-center gap-1">
+                  <i data-lucide="wind" className="w-3.5 h-3.5"></i>
+                  풍속
+                </label>
+                <span className="font-semibold bg-slate-700 px-2 py-0.5 rounded text-emerald-400">
+                  {windSpeed} m/s
+                </span>
+              </div>
+
+              <input
+                type="range" min="0" max="100" step="0.5"
+                value={windSpeed}
+                onChange={(e) => setWindSpeed(Number(e.target.value))}
+                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 pt-3 border-t border-slate-700 flex justify-end gap-2">
+            <button
+              type="button" onClick={handleReset}
+              className="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-200"
+            >
+              초기화
+            </button>
+            <button
+              type="button" onClick={handleApply}
+              className="px-3 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition-colors shadow-md"
+            >
+              환경 적용
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<WeatherControlPanel />);
   </script>
 </body>
 </html>
