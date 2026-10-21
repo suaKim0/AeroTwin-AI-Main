@@ -1,4 +1,4 @@
-Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjRiTU9mUkpXcEJDZnBxU1IiLCJqdGkiOiJlZTQ0YTQ3Yy02MmQwLTQ5NjQtYjM0Ni04Nzg3NTU5M2Y5MTEiLCJpZCI6NDg0Mzc3LCJzdWIiOiJkb2RvaGciLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoiZG9kb2hnX2RlZmF1bHQiLCJpYXQiOjE3OTA0MjI4MzJ9.bxtXbRPYuUmUzmuQWEn02DnIzg6jMpY0Xm7g8MTYkRc';
+Cesium.Ion.defaultAccessToken = '';
 
 const viewer = new Cesium.Viewer('cesiumContainer');
 
