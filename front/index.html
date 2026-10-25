@@ -1,22 +1,481 @@
+```html
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aero Twin AI</title>
 
-    <script src="./public/cesium/Cesium.js"></script> <!--CesiumJS-->
-    <link href="./public/cesium/Widgets/widgets.css" rel="stylesheet"> <!--Cesium CSS-->
-    <link href="./style.css" rel="stylesheet"> <!--Style CSS-->
+    <!-- 로컬 Cesium 설정 -->
+    <script>
+        window.CESIUM_BASE_URL = "./public/cesium/";
+    </script>
 
+    <link rel="stylesheet" href="./public/cesium/Widgets/widgets.css">
+    <link rel="stylesheet" href="./style.css">
+    <script src="./public/cesium/Cesium.js"></script>
 
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #101820;
+            color: #eef6ff;
+        }
+
+        #cesiumContainer {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #fluidCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* 오른쪽 제어 패널 */
+        #controlPanel {
+            position: absolute;
+            z-index: 10;
+            top: 24px;
+            right: 24px;
+            width: 290px;
+            box-sizing: border-box;
+            padding: 22px;
+            border: 1px solid rgba(120, 190, 255, 0.35);
+            border-radius: 16px;
+            background: rgba(12, 25, 42, 0.94);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+        }
+
+        /* 드래그 가능한 제목 */
+        .panel-header {
+            margin: 0 0 6px;
+            font-size: 21px;
+            font-weight: 700;
+            color: #8bd5ff;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .panel-header:active {
+            cursor: grabbing;
+        }
+
+        .panel-description {
+            margin: 0 0 24px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #a9bed3;
+        }
+
+        .control-group {
+            margin-bottom: 22px;
+        }
+
+        .control-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .control-value {
+            color: #8bd5ff;
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #50c8ff;
+            cursor: pointer;
+        }
+
+        /* 풍향 나침반 */
+        .direction-display {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100px;
+            height: 100px;
+            margin: 16px auto 0;
+            border: 1px solid rgba(139, 213, 255, 0.45);
+            border-radius: 50%;
+            background: rgba(35, 70, 100, 0.25);
+        }
+
+        .compass-north {
+            position: absolute;
+            top: 7px;
+            font-size: 11px;
+            color: #a9bed3;
+        }
+
+        .direction-arrow {
+            font-size: 38px;
+            line-height: 1;
+            color: #50c8ff;
+            transform-origin: center;
+        }
+
+        .direction-caption {
+            margin-top: 10px;
+            text-align: center;
+            color: #a9bed3;
+            font-size: 12px;
+        }
+
+        /* 적용 및 초기화 버튼 */
+        .panel-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .panel-buttons button {
+            flex: 1;
+            padding: 11px 8px;
+            border: 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        #applyButton {
+            background: #50c8ff;
+            color: #102336;
+        }
+
+        #applyButton:hover {
+            background: #83d9ff;
+        }
+
+        #resetButton {
+            background: #263d53;
+            color: #eaf5ff;
+        }
+
+        #resetButton:hover {
+            background: #36536e;
+        }
+
+        .panel-status {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(150, 190, 220, 0.2);
+            font-size: 11px;
+            line-height: 1.6;
+            color: #a9bed3;
+            overflow-wrap: anywhere;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            margin-right: 6px;
+            border-radius: 50%;
+            background: #67e8a5;
+        }
+
+        @media (max-width: 600px) {
+            #controlPanel {
+                top: 12px;
+                right: 12px;
+                width: 255px;
+                padding: 16px;
+            }
+        }
+    </style>
 </head>
 
 <body>
+    <!-- 3D 지구본 -->
     <div id="cesiumContainer"></div>
-    <script src="./index.js"></script>
-    <script src="./app.js"></script>
-</body>
 
+    <!-- 바람 시각화 캔버스 -->
+    <canvas id="fluidCanvas"></canvas>
+
+    <!-- 오른쪽 제어 패널 -->
+    <aside id="controlPanel">
+        <h1 class="panel-header" id="panelDragHandle">
+            AeroFlow AI
+        </h1>
+
+        <p class="panel-description">
+            Aircraft Wind Visualization<br>
+            풍향과 풍속을 조절해 보세요.
+            <br><br>
+            <small>제목을 드래그하면 패널을 이동할 수 있습니다.</small>
+        </p>
+
+        <!-- 풍향 -->
+        <section class="control-group">
+            <div class="control-heading">
+                <label for="windDirection">풍향</label>
+                <span class="control-value">
+                    <span id="directionValue">180</span>°
+                </span>
+            </div>
+
+            <input
+                id="windDirection"
+                type="range"
+                min="0"
+                max="359"
+                value="180"
+                step="1"
+            >
+
+            <div class="direction-display">
+                <span class="compass-north">N</span>
+                <span id="directionArrow" class="direction-arrow">↑</span>
+            </div>
+
+            <div class="direction-caption" id="directionLabel">
+                남풍 · 180°
+            </div>
+        </section>
+
+        <!-- 풍속 -->
+        <section class="control-group">
+            <div class="control-heading">
+                <label for="windSpeed">풍속</label>
+                <span class="control-value">
+                    <span id="speedValue">10</span> m/s
+                </span>
+            </div>
+
+            <input
+                id="windSpeed"
+                type="range"
+                min="0"
+                max="30"
+                value="10"
+                step="1"
+            >
+        </section>
+
+        <!-- 버튼 -->
+        <div class="panel-buttons">
+            <button id="applyButton" type="button">적용하기</button>
+            <button id="resetButton" type="button">초기화</button>
+        </div>
+
+        <!-- 상태 -->
+        <div class="panel-status">
+            <div>
+                <span class="status-dot"></span>
+                <span id="statusText">화면 초기화 중</span>
+            </div>
+            <div>데이터: wind_data.json</div>
+        </div>
+    </aside>
+
+    <!-- 기존 비행기 코드 -->
+    <script src="./app.js"></script>
+
+    <!-- 바람 시각화 코드 -->
+    <script src="./fluid.js"></script>
+
+    <!-- 패널 기능 -->
+    <script>
+        const directionInput = document.getElementById("windDirection");
+        const speedInput = document.getElementById("windSpeed");
+
+        const directionValue = document.getElementById("directionValue");
+        const speedValue = document.getElementById("speedValue");
+        const directionArrow = document.getElementById("directionArrow");
+        const directionLabel = document.getElementById("directionLabel");
+        const statusText = document.getElementById("statusText");
+
+        /* 풍향 각도를 풍향 이름으로 변환 */
+        function getDirectionName(degrees) {
+            if (degrees >= 337.5 || degrees < 22.5) return "북풍";
+            if (degrees < 67.5) return "북동풍";
+            if (degrees < 112.5) return "동풍";
+            if (degrees < 157.5) return "남동풍";
+            if (degrees < 202.5) return "남풍";
+            if (degrees < 247.5) return "남서풍";
+            if (degrees < 292.5) return "서풍";
+            return "북서풍";
+        }
+
+        /* 슬라이더 값과 화면 표시 업데이트 */
+        function updatePanel() {
+            const direction = Number(directionInput.value);
+            const speed = Number(speedInput.value);
+
+            directionValue.textContent = direction;
+            speedValue.textContent = speed;
+
+            directionArrow.style.transform = `rotate(${direction}deg)`;
+
+            directionLabel.textContent =
+                `${getDirectionName(direction)} · ${direction}°`;
+        }
+
+        directionInput.addEventListener("input", updatePanel);
+        speedInput.addEventListener("input", updatePanel);
+
+        /* 적용하기 */
+        document.getElementById("applyButton").addEventListener("click", () => {
+            const direction = Number(directionInput.value);
+            const speed = Number(speedInput.value);
+
+            if (typeof window.setFluidWind !== "function") {
+                statusText.textContent =
+                    "바람 모듈을 찾을 수 없습니다. fluid.js를 확인하세요.";
+
+                console.error("window.setFluidWind 함수가 없습니다.");
+                return;
+            }
+
+            window.setFluidWind(direction, speed);
+
+            statusText.textContent =
+                `설정 적용 완료 · 풍향 ${direction}° · 풍속 ${speed} m/s`;
+        });
+
+        /* 초기화 */
+        document.getElementById("resetButton").addEventListener("click", () => {
+            directionInput.value = 180;
+            speedInput.value = 10;
+
+            updatePanel();
+
+            if (typeof window.setFluidWind === "function") {
+                window.setFluidWind(180, 10);
+                statusText.textContent = "초기 설정 적용 완료";
+            } else {
+                statusText.textContent =
+                    "패널 초기화 완료 · 바람 모듈 확인 필요";
+            }
+        });
+
+        updatePanel();
+
+        /* 패널 드래그 기능 */
+        (() => {
+            const panel = document.getElementById("controlPanel");
+            const handle = document.getElementById("panelDragHandle");
+
+            let dragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+            let activePointerId = null;
+
+            handle.addEventListener("pointerdown", (event) => {
+                if (event.button !== 0) return;
+
+                const rect = panel.getBoundingClientRect();
+
+                offsetX = event.clientX - rect.left;
+                offsetY = event.clientY - rect.top;
+
+                /* 기존 right 기준 배치를 left/top 기준으로 변경 */
+                panel.style.left = `${rect.left}px`;
+                panel.style.top = `${rect.top}px`;
+                panel.style.right = "auto";
+
+                dragging = true;
+                activePointerId = event.pointerId;
+
+                handle.setPointerCapture(event.pointerId);
+                event.preventDefault();
+            });
+
+            handle.addEventListener("pointermove", (event) => {
+                if (!dragging || event.pointerId !== activePointerId) {
+                    return;
+                }
+
+                const maxX = Math.max(
+                    0,
+                    window.innerWidth - panel.offsetWidth
+                );
+
+                const maxY = Math.max(
+                    0,
+                    window.innerHeight - panel.offsetHeight
+                );
+
+                const x = Math.max(
+                    0,
+                    Math.min(event.clientX - offsetX, maxX)
+                );
+
+                const y = Math.max(
+                    0,
+                    Math.min(event.clientY - offsetY, maxY)
+                );
+
+                panel.style.left = `${x}px`;
+                panel.style.top = `${y}px`;
+            });
+
+            function stopDragging() {
+                dragging = false;
+                activePointerId = null;
+            }
+
+            handle.addEventListener("pointerup", stopDragging);
+            handle.addEventListener("pointercancel", stopDragging);
+
+            window.addEventListener("resize", () => {
+                if (!panel.style.left) return;
+
+                const maxX = Math.max(
+                    0,
+                    window.innerWidth - panel.offsetWidth
+                );
+
+                const maxY = Math.max(
+                    0,
+                    window.innerHeight - panel.offsetHeight
+                );
+
+                const rect = panel.getBoundingClientRect();
+
+                panel.style.left =
+                    `${Math.min(rect.left, maxX)}px`;
+
+                panel.style.top =
+                    `${Math.min(rect.top, maxY)}px`;
+            });
+        })();
+
+        /* 초기 준비 상태 확인 */
+        window.addEventListener("load", () => {
+            const viewerReady = Boolean(window.viewer);
+            const fluidReady = typeof window.setFluidWind === "function";
+
+            if (viewerReady && fluidReady) {
+                statusText.textContent = "지구본 및 바람 모듈 준비 완료";
+            } else if (!viewerReady) {
+                statusText.textContent =
+                    "Cesium Viewer 확인 필요 · app.js";
+            } else {
+                statusText.textContent =
+                    "지구본 준비 완료 · 바람 모듈 확인 필요";
+            }
+        });
+    </script>
+</body>
 </html>
+```
